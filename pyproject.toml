@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nacha-return-risk-oracle"
+version = "1.0.0"
+description = "Sub-Second ACH Return (R01/R10) Predictor & Micro-Deposit Risk Oracle (NACHA 0.5% Threshold Breaker)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Autonomous Sovereign Systems"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Security :: Cryptography",
+]
+
+[project.scripts]
+nacha-return-risk-oracle = "nacha_return_risk_oracle.cli:main"
