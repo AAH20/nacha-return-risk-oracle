@@ -7,7 +7,7 @@
 [![Unauthorized Return Cap](https://img.shields.io/badge/NACHA%20Cap-0.50%25%20(R05%2FR10)-red.svg)]()
 [![Micro-Entries Rule](https://img.shields.io/badge/NACHA-Micro--Entry%20Rule%20Compliant-green.svg)]()
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(Stdlib%20Only)-success.svg)]()
-[![Evidence Vault](https://img.shields.io/badge/Evidence%20Vault-a2zsoc.com-purple.svg)](https://a2zsoc.com)
+[![Evidence Sealing](https://img.shields.io/badge/Evidence_Sealing-local_in--memory-lightgrey.svg)]()
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 
 ---
@@ -23,7 +23,7 @@ Originating Depository Financial Institutions (ODFIs) and ACH Originators operat
 3. **The Micro-Entry Account Validation Mandate**:  
    NACHA rules explicitly require originators to conduct risk-based monitoring on micro-entries used for account validation to prevent credit-push testing and unauthorized ACH debits.
 
-`nacha-return-risk-oracle` is a zero-dependency, sub-second pre-origination engine that predicts **R01 (Insufficient Funds)** and **R10 (Customer Advises Unauthorized)** returns *before* batch transmission, dynamically quarantining toxic entries to guarantee originators operate safely below the 0.50% threshold, Merkle-sealing compliance proofs to the **[a2zsoc.com](https://a2zsoc.com)** Sovereign Evidence Vault.
+`nacha-return-risk-oracle` is a zero-dependency, sub-second pre-origination engine that predicts **R01 (Insufficient Funds)** and **R10 (Customer Advises Unauthorized)** returns *before* batch transmission, dynamically quarantining toxic entries to keep originators below the 0.50% threshold, and computing a local SHA-256 integrity proof of each batch assessment. Remote sealing of those proofs to the **[a2zsoc.com](https://a2zsoc.com)** Sovereign Evidence Vault is a roadmap item, not yet implemented: the current build records each assessment only in an in-process `audit_log` list and makes no network call.
 
 ---
 
@@ -59,7 +59,7 @@ flowchart TD
     subgraph ClearingOutcomes["Federal Reserve FedACH / EPN"]
         FedACHTransmission["Clean Batch Submitted to FedACH"]
         RescheduledQueue["Delayed for Next Direct Deposit (Avoids $15 NSF Fee)"]
-        AuditVault["a2zsoc.com Sovereign Evidence Vault"]
+        AuditVault["Local In-Memory Audit Log (a2zsoc.com vault: roadmap)"]
     end
 
     RawBatch --> PaydayTiming
@@ -98,7 +98,7 @@ sequenceDiagram
     participant Oracle as NACHA Return Risk Oracle
     participant Breaker as 0.50% Circuit Breaker
     participant FedACH as Federal Reserve FedACH
-    participant Vault as a2zsoc.com Evidence Vault
+    participant Vault as Local Audit Log (in-process)
 
     Orig->>Oracle: Submit Pending Batch of 10,000 Debits ($1.5M Volume)
     Oracle->>Oracle: Predict R01 NSF Probabilities via Payday Timing
@@ -110,8 +110,8 @@ sequenceDiagram
         Breaker->>Breaker: Quarantine 12 Toxic WEB Entries (Projected Rate Drops to 0.18%)
     end
 
-    Breaker->>Vault: Merkle-Seal Pre-Origination Risk Audit Leaf
-    Vault-->>Breaker: Proof 9c3dd8f8... Stored in Vault
+    Breaker->>Vault: Append Risk Record + SHA-256 Proof (in-process)
+    Vault-->>Breaker: Proof 9c3dd8f8... Held in Memory (a2zsoc.com sealing: roadmap)
     Breaker-->>Orig: Batch Filtered: 9,988 Dispatched, 12 Quarantined (NACHA Compliant)
     Orig->>FedACH: Transmit Clean File (0.18% Projected Rate)
 ```
@@ -126,7 +126,7 @@ sequenceDiagram
 | **R01 NSF Predictive Timing** | Direct Deposit Timing Rules | Predicts balance depletion on days 11-14 of payroll cycle, preventing $15 ODFI return fees |
 | **Micro-Entry Rule Sentinel** | Micro-Entries Rule | Identifies first-time debit pulls without completed micro-deposit validation |
 | **WEB Debit Risk Scorer** | WEB SEC Code Guidelines | Flags anomalous high-value internet-initiated debit pulls |
-| **Evidence Sealing** | RFC 3161 Merkle Tree | Tamper-evident ODFI pre-origination compliance logs to `a2zsoc.com` |
+| **Evidence Sealing** | SHA-256 content hash | Computes a per-batch SHA-256 integrity proof and appends it to an in-process audit log (persistent/remote sealing to `a2zsoc.com` is roadmap) |
 
 ---
 
@@ -145,7 +145,7 @@ python3 -m nacha_return_risk_oracle.cli demo
 
 ## Automated Test Suite
 
-`nacha-return-risk-oracle` features 100% test coverage using standard library `unittest`:
+`nacha-return-risk-oracle` ships a standard library `unittest` suite:
 
 ```bash
 python3 -m unittest discover -s tests
